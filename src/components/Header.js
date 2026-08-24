@@ -16,6 +16,10 @@ export default function Header({
   onOpenHistory,
   isDarkMode,
   onToggleTheme,
+  searchHistory = [],
+  onSearchHistorySelect,
+  sessionActive = false,
+  onTabBadgePress,
 }) {
   const [menuVisible, setMenuVisible] = useState(false);
 
@@ -41,9 +45,23 @@ export default function Header({
       {/* Right side actions */}
       <View style={styles.rightActions}>
         {/* Tab Counter Badge */}
-        <TouchableOpacity style={styles.iconBtn} activeOpacity={0.7}>
-          <View style={[styles.tabBadge, theme.tabBadge]}>
-            <Text style={[styles.tabBadgeText, theme.tabBadgeText]}>{tabCount}</Text>
+        <TouchableOpacity
+          style={styles.iconBtn}
+          activeOpacity={0.7}
+          onPress={onTabBadgePress}
+        >
+          <View style={[
+            styles.tabBadge,
+            theme.tabBadge,
+            sessionActive && { borderColor: '#FBBC05', backgroundColor: 'rgba(251, 188, 5, 0.15)' },
+          ]}>
+            <Text style={[
+              styles.tabBadgeText,
+              theme.tabBadgeText,
+              sessionActive && { color: '#FBBC05' },
+            ]}>
+              {tabCount}
+            </Text>
           </View>
         </TouchableOpacity>
 
@@ -162,6 +180,46 @@ export default function Header({
                 />
                 <Text style={[styles.menuText, theme.menuText]}>Settings</Text>
               </TouchableOpacity>
+
+              {/* Search History Section */}
+              {searchHistory.length > 0 && (
+                <>
+                  <View style={[styles.divider, theme.divider]} />
+                  <View style={styles.historyHeader}>
+                    <Ionicons
+                      name="time-outline"
+                      size={16}
+                      color={isDarkMode ? '#8AB4F8' : '#1A73E8'}
+                    />
+                    <Text style={[styles.historyTitle, { color: isDarkMode ? '#8AB4F8' : '#1A73E8' }]}>
+                      Recent Searches
+                    </Text>
+                  </View>
+                  {searchHistory.map((term, index) => (
+                    <TouchableOpacity
+                      key={`header-history-${index}`}
+                      style={styles.historyItem}
+                      onPress={() => {
+                        setMenuVisible(false);
+                        if (onSearchHistorySelect) onSearchHistorySelect(term);
+                      }}
+                    >
+                      <Ionicons
+                        name="search"
+                        size={14}
+                        color={isDarkMode ? '#9AA0A6' : '#5F6368'}
+                        style={{ marginRight: 10 }}
+                      />
+                      <Text
+                        style={[styles.historyText, { color: isDarkMode ? '#BDC1C6' : '#3C4043' }]}
+                        numberOfLines={1}
+                      >
+                        {term}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </>
+              )}
             </View>
           </View>
         </TouchableWithoutFeedback>
@@ -244,6 +302,30 @@ const styles = StyleSheet.create({
   divider: {
     height: 1,
     marginVertical: 4,
+  },
+  historyHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 4,
+  },
+  historyTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    marginLeft: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  historyItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+  },
+  historyText: {
+    fontSize: 14,
+    flex: 1,
   },
 });
 

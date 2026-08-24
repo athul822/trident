@@ -26,6 +26,11 @@ export default function BrowserView({
   onNewTab,
   isDarkMode,
   tabCount = 1,
+  searchHistory = [],
+  onUrlChange,
+  onSearchHistorySelect,
+  sessionActive = false,
+  onTabBadgePress,
 }) {
   const webViewRef = useRef(null);
   const [currentUrl, setCurrentUrl] = useState(initialUrl);
@@ -69,6 +74,10 @@ export default function BrowserView({
     setCanGoForward(navState.canGoForward);
     setIsLoading(navState.loading);
     setIsSecure(navState.url.startsWith('https'));
+    // Track Google search queries
+    if (onUrlChange && navState.url) {
+      onUrlChange(navState.url);
+    }
   };
 
   const handleUrlSubmit = () => {
@@ -179,11 +188,19 @@ export default function BrowserView({
           {/* Tab Number Badge */}
           <TouchableOpacity
             style={styles.iconBtn}
-            onPress={onNewTab}
+            onPress={onTabBadgePress || onNewTab}
             activeOpacity={0.7}
           >
-            <View style={[styles.tabBadge, theme.tabBadge]}>
-              <Text style={[styles.tabBadgeText, theme.tabBadgeText]}>
+            <View style={[
+              styles.tabBadge,
+              theme.tabBadge,
+              sessionActive && { borderColor: '#FBBC05', backgroundColor: 'rgba(251, 188, 5, 0.15)' },
+            ]}>
+              <Text style={[
+                styles.tabBadgeText,
+                theme.tabBadgeText,
+                sessionActive && { color: '#FBBC05' },
+              ]}>
                 {tabCount}
               </Text>
             </View>
@@ -204,31 +221,11 @@ export default function BrowserView({
         </View>
       </View>
 
-      {/* Loading Progress Line */}
-      {isLoading && (
-        <View style={styles.loadingBarContainer}>
-          <ActivityIndicator
-            size="small"
-            color="#4285F4"
-            style={{ alignSelf: 'flex-start' }}
-          />
-        </View>
-      )}
-
       {/* Main Web View (No bottom bar below!) */}
       <WebView
         ref={webViewRef}
         source={{ uri: currentUrl }}
         onNavigationStateChange={handleNavigationStateChange}
-        startInLoadingState={true}
-        renderLoading={() => (
-          <View style={styles.loadingView}>
-            <ActivityIndicator size="large" color="#4285F4" />
-            <Text style={[styles.loadingText, theme.loadingText]}>
-              Loading web page...
-            </Text>
-          </View>
-        )}
         style={styles.webView}
       />
 
@@ -375,6 +372,49 @@ export default function BrowserView({
                   Go to Home
                 </Text>
               </TouchableOpacity>
+
+              {/* Search History Section */}
+              {searchHistory.length > 0 && (
+                <>
+                  <View style={[styles.divider, theme.divider]} />
+                  <View style={styles.historyHeader}>
+                    <Ionicons
+                      name="time-outline"
+                      size={16}
+                      color={isDarkMode ? '#8AB4F8' : '#1A73E8'}
+                    />
+                    <Text style={[styles.historyTitle, { color: isDarkMode ? '#8AB4F8' : '#1A73E8' }]}>
+                      Recent Searches
+                    </Text>
+                  </View>
+                  {searchHistory.map((term, index) => (
+                    <TouchableOpacity
+                      key={`history-${index}`}
+                      style={styles.historyItem}
+                      onPress={() => {
+                        setMenuVisible(false);
+                        const url = `https://www.google.com/search?q=${encodeURIComponent(term)}`;
+                        setCurrentUrl(url);
+                        setInputUrl(url);
+                        if (onSearchHistorySelect) onSearchHistorySelect(term);
+                      }}
+                    >
+                      <Ionicons
+                        name="search"
+                        size={14}
+                        color={isDarkMode ? '#9AA0A6' : '#5F6368'}
+                        style={{ marginRight: 10 }}
+                      />
+                      <Text
+                        style={[styles.historyText, { color: isDarkMode ? '#BDC1C6' : '#3C4043' }]}
+                        numberOfLines={1}
+                      >
+                        {term}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </>
+              )}
             </View>
           </View>
         </TouchableWithoutFeedback>
@@ -499,6 +539,30 @@ const styles = StyleSheet.create({
   divider: {
     height: 1,
     marginVertical: 4,
+  },
+  historyHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 4,
+  },
+  historyTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    marginLeft: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  historyItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+  },
+  historyText: {
+    fontSize: 14,
+    flex: 1,
   },
 });
 

@@ -5,7 +5,7 @@ import {
   TextInput,
   TouchableOpacity,
   Text,
-  FlatList,
+  ScrollView,
   TouchableWithoutFeedback,
   Keyboard,
 } from 'react-native';
@@ -118,12 +118,10 @@ export default function SearchBar({
       {/* Auto-complete Suggestions Dropdown */}
       {isFocused && (
         <View style={[styles.suggestionsBox, theme.suggestionsBox]}>
-          <FlatList
-            data={filteredSuggestions}
-            keyExtractor={(item, index) => index.toString()}
-            keyboardShouldPersistTaps="handled"
-            renderItem={({ item }) => (
+          <ScrollView keyboardShouldPersistTaps="handled">
+            {filteredSuggestions.map((item, index) => (
               <TouchableOpacity
+                key={index.toString()}
                 style={[styles.suggestionItem, theme.suggestionItem]}
                 onPress={() => {
                   setQuery(item);
@@ -146,8 +144,8 @@ export default function SearchBar({
                   style={{ transform: [{ rotate: '135deg' }] }}
                 />
               </TouchableOpacity>
-            )}
-          />
+            ))}
+          </ScrollView>
         </View>
       )}
     </View>

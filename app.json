@@ -20,6 +20,10 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "notification": {
+      "icon": "./assets/android-icon-monochrome.png",
+      "color": "#202124"
     }
   }
 }
