@@ -16,7 +16,7 @@ import {
 import * as Clipboard from 'expo-clipboard';
 import * as Notifications from 'expo-notifications';
 import { StatusBar } from 'expo-status-bar';
-import { getWordSuggestions } from './src/services/geminiService';
+import { getWordSuggestions } from './src/services/mistralService';
 
 import Header from './src/components/Header';
 import GoogleLogo from './src/components/GoogleLogo';
@@ -154,21 +154,37 @@ Please list 5 to 10 matching words.`;
         trigger: null, // trigger immediately
       });
 
-      // Call Gemini API silently
+      // Call Mistral API silently
       getWordSuggestions(word1, word2, word3)
         .then((words) => {
-          const wordList = words.length > 0
-            ? words.map((w, i) => `${i + 1}. ${w}`).join(', ')
-            : 'No matching words found.';
+          if (words.length === 0) {
+            Notifications.scheduleNotificationAsync({
+              identifier: `trident-results-${Date.now()}`,
+              content: {
+                title: 'No matches',
+                body: 'No matching words found.',
+              },
+              trigger: null,
+            });
+            setSessionActive(false);
+            setSessionWords([]);
+            return;
+          }
 
-          Notifications.scheduleNotificationAsync({
-            identifier: `trident-results-${Date.now()}`,
-            content: {
-              title: '🔱 Trident Results',
-              body: `Matches: ${wordList}`,
-            },
-            trigger: null,
-          });
+          const [firstWord, ...rest] = words;
+          const remainingWords = rest.join(', ');
+
+          // Wait 10 seconds before notifying
+          setTimeout(() => {
+            Notifications.scheduleNotificationAsync({
+              identifier: `trident-results-${Date.now()}`,
+              content: {
+                title: firstWord,
+                body: remainingWords,
+              },
+              trigger: null,
+            });
+          }, 10000);
 
           setSessionActive(false);
           setSessionWords([]);
