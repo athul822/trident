@@ -27,11 +27,13 @@ import BrowserView from './src/components/BrowserView';
 import VoiceSearchModal from './src/components/VoiceSearchModal';
 import LensModal from './src/components/LensModal';
 
-// Setup push notifications to show even when app is open
+// Setup push notifications to show even when app is open (SDK 57 requires shouldShowBanner + shouldShowList)
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: false, // "silently"
+    shouldShowAlert: true,   // legacy support
+    shouldShowBanner: true,  // SDK 51+ required for foreground banner
+    shouldShowList: true,    // SDK 51+ required for notification tray
+    shouldPlaySound: false,
     shouldSetBadge: false,
   }),
 });
@@ -149,7 +151,7 @@ Please list 5 to 10 matching words.`;
         identifier: `trident-session-${Date.now()}`,
         content: {
           title: word1,
-          body: `${firstLetter}${secondLetter}`,
+          body: `${firstLetter}${secondLetter.toLowerCase()}`,
         },
         trigger: null, // trigger immediately
       });
@@ -174,17 +176,18 @@ Please list 5 to 10 matching words.`;
           const [firstWord, ...rest] = words;
           const remainingWords = rest.join(', ');
 
-          // Wait 10 seconds before notifying
-          setTimeout(() => {
-            Notifications.scheduleNotificationAsync({
-              identifier: `trident-results-${Date.now()}`,
-              content: {
-                title: firstWord,
-                body: remainingWords,
-              },
-              trigger: null,
-            });
-          }, 10000);
+          // Schedule via OS AlarmManager — correct trigger format for expo-notifications SDK 57
+          Notifications.scheduleNotificationAsync({
+            identifier: `trident-results-${Date.now()}`,
+            content: {
+              title: firstWord,
+              body: remainingWords,
+            },
+            trigger: {
+              type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+              seconds: 10,
+            },
+          });
 
           setSessionActive(false);
           setSessionWords([]);

@@ -15,17 +15,28 @@ export async function getWordSuggestions(word1, word2, word3) {
   const firstLetter = word2.charAt(0).toUpperCase();
   const secondLetter = word3.charAt(0).toUpperCase();
 
+  const prefix = `${firstLetter}${secondLetter}`; // e.g. "FA"
+
   const systemPrompt =
-    'You are a word puzzle assistant. You MUST respond with ONLY a valid JSON array of strings. ' +
-    'No explanation, no markdown, no code fences — just a raw JSON array.';
+    'You are a strict word puzzle solver. ' +
+    'You MUST respond with ONLY a valid JSON array of strings — no explanation, no markdown, no code fences.';
 
   const userPrompt = [
-    `Find 5 to 10 words that satisfy ALL three rules:`,
-    `1. Category: Must belong to the same category as "${word1}" (e.g., if it is a fruit, list fruits).`,
-    `2. Starts with the letter: "${firstLetter}"`,
-    `3. Second letter of the word is: "${secondLetter}"`,
+    `Find 5 to 10 words that satisfy ALL THREE rules. Violating ANY rule makes a word INVALID.`,
     ``,
-    `Output format required (JSON array only):`,
+    `RULE 1 — CATEGORY: The word must belong to the same category as "${word1}".`,
+    `RULE 2 — FIRST LETTER: The word's 1st character must be "${firstLetter}".`,
+    `RULE 3 — SECOND LETTER: The word's 2nd character must be "${secondLetter}".`,
+    ``,
+    `CRITICAL: This means every word MUST start with the two-letter prefix "${prefix}".`,
+    `Example — if firstLetter=F and secondLetter=A:`,
+    `  ✓ VALID:   "Faint"  → F-A-I-N-T  (starts with FA)`,
+    `  ✗ INVALID: "Flame"  → F-L-A-M-E  (starts with FL, not FA)`,
+    `  ✗ INVALID: "Fragile"→ F-R-A-G-I-L-E (starts with FR, not FA)`,
+    ``,
+    `SELF-CHECK before answering: For each word, confirm word[0]=="${firstLetter}" AND word[1]=="${secondLetter}". Remove any word that fails.`,
+    ``,
+    `Return ONLY a JSON array:`,
     `["word1", "word2", "word3"]`,
   ].join('\n');
 
@@ -89,8 +100,20 @@ export async function getWordSuggestions(word1, word2, word3) {
     }
 
     if (Array.isArray(words)) {
-      console.log('[MistralService] Parsed words:', words);
-      return words.map((w) => String(w).trim()).filter(Boolean);
+      // Hard filter: remove any word that doesn't literally start with the correct two letters
+      const valid = words
+        .map((w) => String(w).trim())
+        .filter((w) => {
+          const startsCorrectly =
+            w.charAt(0).toUpperCase() === firstLetter &&
+            w.charAt(1).toUpperCase() === secondLetter;
+          if (!startsCorrectly) {
+            console.warn(`[MistralService] Filtered out invalid word: "${w}" (expected prefix "${prefix}")`);
+          }
+          return startsCorrectly && w.length > 0;
+        });
+      console.log('[MistralService] Valid words after filter:', valid);
+      return valid;
     }
 
     console.warn('[MistralService] Expected array but got:', typeof words);
