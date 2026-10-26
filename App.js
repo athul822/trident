@@ -81,32 +81,68 @@ export default function App() {
   const addToSearchHistory = useCallback(
     (url) => {
       try {
-        const match = url.match(/google\.com\/search\?.*q=([^&]+)/);
-        if (match && match[1]) {
-          const term = decodeURIComponent(match[1].replace(/\+/g, ' '));
+        let term = null;
 
+        // Reliably parse the 'q' parameter from Google Search URLs (never 'oq')
+        try {
+          const parsed = new URL(url);
+          if (
+            parsed.hostname.includes('google.') &&
+            (parsed.pathname === '/search' || parsed.pathname.startsWith('/search'))
+          ) {
+            const q = parsed.searchParams.get('q');
+            if (q) {
+              term = q.trim();
+            }
+          }
+        } catch {
+          // Fallback if URL parsing fails: match ?q= or &q=, never &oq=
+          const match = url.match(/[?&]q=([^&#]+)/i);
+          if (match && match[1]) {
+            term = decodeURIComponent(match[1].replace(/\+/g, ' ')).trim();
+          }
+        }
+
+        if (term) {
           // Add to general history
           setSearchHistory((prev) => {
-            const filtered = prev.filter((item) => item.trim().toLowerCase() !== term.trim().toLowerCase());
-            return [term.trim(), ...filtered].slice(0, 10);
+            const filtered = prev.filter(
+              (item) => item.trim().toLowerCase() !== term.toLowerCase()
+            );
+            return [term, ...filtered].slice(0, 10);
           });
 
           // Track session words if session is active
           if (sessionActive) {
             setSessionWords((prev) => {
               if (prev.length >= 3) return prev;
-              const normalizedTerm = term.trim().toLowerCase();
+              const normalizedTerm = term.toLowerCase();
+
               // Skip duplicate words
-              if (prev.some(w => w.trim().toLowerCase() === normalizedTerm)) return prev;
+              if (prev.some((w) => w.trim().toLowerCase() === normalizedTerm)) {
+                return prev;
+              }
+
               // Word2 and word3 must have different first letters.
               // Only check when adding word3 (prev.length === 2),
               // comparing against word2 (prev[1]).
               if (prev.length === 2) {
                 const word2FirstLetter = prev[1].trim().charAt(0).toLowerCase();
-                const newFirstLetter = term.trim().charAt(0).toLowerCase();
-                if (newFirstLetter === word2FirstLetter) return prev; // skip, same first letter
+                const newFirstLetter = term.charAt(0).toLowerCase();
+                if (newFirstLetter === word2FirstLetter) {
+                  console.log(
+                    `[Trident Session] Skipping "${term}" because first letter matches word2 ("${prev[1]}")`
+                  );
+                  return prev; // skip, same first letter
+                }
               }
-              return [...prev, term.trim()];
+
+              const nextWords = [...prev, term];
+              console.log(
+                `[Trident Session] Word ${nextWords.length}/3 added: "${term}" | Current words:`,
+                nextWords
+              );
+              return nextWords;
             });
           }
         }
