@@ -26,6 +26,7 @@ import DiscoverFeed from './src/components/DiscoverFeed';
 import BrowserView from './src/components/BrowserView';
 import VoiceSearchModal from './src/components/VoiceSearchModal';
 import LensModal from './src/components/LensModal';
+import SettingsModal from './src/components/SettingsModal';
 
 // Setup push notifications to show even when app is open (SDK 57 requires shouldShowBanner + shouldShowList)
 Notifications.setNotificationHandler({
@@ -33,7 +34,7 @@ Notifications.setNotificationHandler({
     shouldShowAlert: true,   // legacy support
     shouldShowBanner: true,  // SDK 51+ required for foreground banner
     shouldShowList: true,    // SDK 51+ required for notification tray
-    shouldPlaySound: false,
+    shouldPlaySound: true,
     shouldSetBadge: false,
   }),
 });
@@ -44,12 +45,19 @@ export default function App() {
   const [browserUrl, setBrowserUrl] = useState('https://www.google.com');
   const [voiceModalVisible, setVoiceModalVisible] = useState(false);
   const [lensModalVisible, setLensModalVisible] = useState(false);
+  const [settingsModalVisible, setSettingsModalVisible] = useState(false);
+  const [pushToken, setPushToken] = useState(null);
+  const [tokenError, setTokenError] = useState(null);
+  const [isFetchingToken, setIsFetchingToken] = useState(false);
+  const [hasNotificationPermission, setHasNotificationPermission] = useState(false);
   const [tabCount, setTabCount] = useState(1);
   const [searchHistory, setSearchHistory] = useState([]);
 
-  // ── Setup Notifications for Production Builds ──
-  useEffect(() => {
-    async function setupNotifications() {
+  // ── Setup Notifications & Retrieve Push Token for Background Alerts ──
+  const setupNotifications = useCallback(async () => {
+    setIsFetchingToken(true);
+    setTokenError(null);
+    try {
       // 1. Request permissions (Required for Android 13+ and iOS)
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
       let finalStatus = existingStatus;
@@ -57,21 +65,74 @@ export default function App() {
         const { status } = await Notifications.requestPermissionsAsync();
         finalStatus = status;
       }
-      
-      // 2. Set up Android Channel (Required for Android 8+)
+      const granted = finalStatus === 'granted';
+      setHasNotificationPermission(granted);
+
+      // 2. Set up Android Channel with MAX importance (Crucial for background & screen wake)
       if (Platform.OS === 'android') {
         await Notifications.setNotificationChannelAsync('default', {
           name: 'default',
-          importance: Notifications.AndroidImportance.HIGH,
-          enableVibrate: false,
-          sound: null, // explicitly silent
-          vibrationPattern: [0, 0, 0, 0],
+          importance: Notifications.AndroidImportance.MAX,
+          enableVibrate: true,
+          sound: 'default',
+          vibrationPattern: [0, 250, 250, 250],
           lightColor: '#FF231F7C',
         });
       }
+
+      // 3. Fetch Push Token (Try Expo Push Token, fallback to native FCM token)
+      if (granted) {
+        let token = null;
+        let lastErr = null;
+        try {
+          const tokenData = await Notifications.getExpoPushTokenAsync();
+          if (tokenData?.data) {
+            token = tokenData.data;
+          }
+        } catch (e1) {
+          lastErr = e1;
+          console.warn('[Expo Push Token Fetch Failed]:', e1.message);
+          try {
+            const deviceToken = await Notifications.getDevicePushTokenAsync();
+            if (deviceToken?.data) {
+              token = deviceToken.data;
+            }
+          } catch (e2) {
+            console.warn('[Native Device Token Fetch Failed]:', e2.message);
+            lastErr = new Error(`Expo Token: ${e1.message}\nDevice Token: ${e2.message}`);
+          }
+        }
+
+        if (token) {
+          setPushToken(token);
+          setTokenError(null);
+          console.log('[Trident Push Token Resolved]:', token);
+        } else if (lastErr) {
+          setTokenError(lastErr.message || String(lastErr));
+        }
+      } else {
+        setTokenError('Notification permission was denied. Please enable in Android App Settings.');
+      }
+    } catch (err) {
+      console.error('[Notification Setup Failed]:', err);
+      setTokenError(err.message || String(err));
+    } finally {
+      setIsFetchingToken(false);
     }
-    setupNotifications();
   }, []);
+
+  useEffect(() => {
+    setupNotifications();
+
+    // Listen for notification interactions (e.g. user taps notification when app was closed)
+    const responseSub = Notifications.addNotificationResponseReceivedListener((response) => {
+      console.log('[Trident Notification Tapped]:', response.notification.request.content);
+    });
+
+    return () => {
+      responseSub.remove();
+    };
+  }, [setupNotifications]);
 
   // ── Trident Session State ──
   const [sessionActive, setSessionActive] = useState(false);
@@ -388,6 +449,7 @@ Please list 5 to 10 matching words.`;
               }}
               sessionActive={sessionActive}
               onTabBadgePress={handleTabBadgePress}
+              onOpenSettings={() => setSettingsModalVisible(true)}
             />
 
             {/* Authentic Google Logo */}
@@ -429,6 +491,18 @@ Please list 5 to 10 matching words.`;
         visible={lensModalVisible}
         onClose={() => setLensModalVisible(false)}
         isDarkMode={isDarkMode}
+      />
+
+      {/* Trident Push Notifications Settings Modal */}
+      <SettingsModal
+        visible={settingsModalVisible}
+        onClose={() => setSettingsModalVisible(false)}
+        isDarkMode={isDarkMode}
+        pushToken={pushToken}
+        tokenError={tokenError}
+        isFetchingToken={isFetchingToken}
+        onRetryToken={setupNotifications}
+        hasNotificationPermission={hasNotificationPermission}
       />
     </SafeAreaView>
   );

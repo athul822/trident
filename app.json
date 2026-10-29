@@ -16,11 +16,12 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "package": "com.anonymous.Trident"
+      "package": "com.anonymous.Trident",
+      "googleServicesFile": "./google-services.json"
     },
-    "web": {
-      "favicon": "./assets/favicon.png"
-    },
+    "plugins": [
+      "expo-notifications"
+    ],
     "notification": {
       "icon": "./assets/android-icon-monochrome.png",
       "color": "#202124"

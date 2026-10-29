@@ -20,6 +20,7 @@ export default function Header({
   onSearchHistorySelect,
   sessionActive = false,
   onTabBadgePress,
+  onOpenSettings,
 }) {
   const [menuVisible, setMenuVisible] = useState(false);
 
@@ -31,6 +32,7 @@ export default function Header({
     if (action === 'bookmarks' && onOpenBookmarks) onOpenBookmarks();
     if (action === 'history' && onOpenHistory) onOpenHistory();
     if (action === 'theme' && onToggleTheme) onToggleTheme();
+    if (action === 'settings' && onOpenSettings) onOpenSettings();
   };
 
   return (
@@ -171,7 +173,7 @@ export default function Header({
 
               <TouchableOpacity
                 style={styles.menuItem}
-                onPress={() => setMenuVisible(false)}
+                onPress={() => handleMenuOption('settings')}
               >
                 <Ionicons
                   name="settings-outline"
