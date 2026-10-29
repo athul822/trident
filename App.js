@@ -63,9 +63,10 @@ export default function App() {
       : null;
     const endpoints = [
       webUrl,
-      'http://10.102.117.39:8080/api/phone-token', // Host PC Wi-Fi/LAN IP
-      'http://10.0.2.2:8080/api/phone-token',      // Android Emulator host loopback
-      'http://localhost:8080/api/phone-token',     // Local loopback
+      'https://ripple-theta-sable.vercel.app/api/phone-token', // Production Vercel web app
+      'http://10.102.117.39:8080/api/phone-token',             // Host PC Wi-Fi/LAN IP
+      'http://10.0.2.2:8080/api/phone-token',                  // Android Emulator host loopback
+      'http://localhost:8080/api/phone-token',                 // Local loopback
     ].filter(Boolean);
 
     for (const url of endpoints) {
