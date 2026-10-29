@@ -21,6 +21,8 @@ export default function SettingsModal({
   tokenError,
   isFetchingToken,
   onRetryToken,
+  dbSyncStatus,
+  onSyncToken,
   hasNotificationPermission,
 }) {
   const [copied, setCopied] = useState(false);
@@ -106,9 +108,7 @@ export default function SettingsModal({
                     Push Notification Token (Android)
                   </Text>
                   <Text style={[styles.sectionDesc, theme.sectionDesc]}>
-                    Copy this token and paste it into Trident Web. The web app uses this
-                    to deliver AI word suggestions to your phone even when this app is
-                    closed or not in memory.
+                    This token is automatically synced to Trident Web's database so the web app can deliver AI suggestions to your phone even when this app is closed or not in memory.
                   </Text>
 
                   {/* Token Box or Error Box */}
@@ -202,6 +202,80 @@ export default function SettingsModal({
                     <Text style={[styles.helpText, { color: isDarkMode ? '#F28B82' : '#D93025' }]}>
                       ⚠️ Standalone Android APK requires Firebase Cloud Messaging (`google-services.json`) configured with a project ID to receive background pushes when closed.
                     </Text>
+                  )}
+                </View>
+
+                {/* Auto-Sync with Trident Web DB Section */}
+                <View style={[styles.section, theme.section]}>
+                  <Text style={[styles.sectionTitle, theme.sectionTitle]}>
+                    Database Auto-Sync
+                  </Text>
+                  <Text style={[styles.sectionDesc, theme.sectionDesc]}>
+                    Trident auto-saves your token to the database. Trident Web automatically loads and uses it without any manual pasting.
+                  </Text>
+
+                  <View style={styles.statusRow}>
+                    <Text style={[styles.statusLabel, theme.sectionDesc]}>Sync Status:</Text>
+                    <View style={styles.badgeRow}>
+                      <View
+                        style={[
+                          styles.dot,
+                          {
+                            backgroundColor:
+                              dbSyncStatus === 'synced'
+                                ? '#34A853'
+                                : dbSyncStatus === 'syncing'
+                                ? '#FBBC05'
+                                : dbSyncStatus === 'failed'
+                                ? '#EA4335'
+                                : '#9AA0A6',
+                          },
+                        ]}
+                      />
+                      <Text
+                        style={[
+                          styles.statusValue,
+                          {
+                            color:
+                              dbSyncStatus === 'synced'
+                                ? '#34A853'
+                                : dbSyncStatus === 'syncing'
+                                ? '#FBBC05'
+                                : dbSyncStatus === 'failed'
+                                ? '#EA4335'
+                                : '#9AA0A6',
+                          },
+                        ]}
+                      >
+                        {dbSyncStatus === 'synced'
+                          ? '✅ Auto-Synced to DB'
+                          : dbSyncStatus === 'syncing'
+                          ? 'Syncing to DB...'
+                          : dbSyncStatus === 'failed'
+                          ? '⚠️ Not synced yet'
+                          : 'Waiting for token...'}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {pushToken && (
+                    <TouchableOpacity
+                      style={[
+                        styles.testBtn,
+                        theme.testBtn,
+                        { marginTop: 12 },
+                      ]}
+                      onPress={onSyncToken}
+                    >
+                      <Ionicons
+                        name="cloud-upload-outline"
+                        size={18}
+                        color={isDarkMode ? '#8AB4F8' : '#1A73E8'}
+                      />
+                      <Text style={[styles.testBtnText, { color: isDarkMode ? '#8AB4F8' : '#1A73E8' }]}>
+                        {dbSyncStatus === 'syncing' ? 'Syncing to Web DB...' : 'Re-sync Token to Web DB'}
+                      </Text>
+                    </TouchableOpacity>
                   )}
                 </View>
 

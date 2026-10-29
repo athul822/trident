@@ -49,9 +49,50 @@ export default function App() {
   const [pushToken, setPushToken] = useState(null);
   const [tokenError, setTokenError] = useState(null);
   const [isFetchingToken, setIsFetchingToken] = useState(false);
+  const [dbSyncStatus, setDbSyncStatus] = useState('idle'); // 'idle' | 'syncing' | 'synced' | 'failed'
   const [hasNotificationPermission, setHasNotificationPermission] = useState(false);
   const [tabCount, setTabCount] = useState(1);
   const [searchHistory, setSearchHistory] = useState([]);
+
+  // ── Auto-sync token to Trident Web Database ──
+  const syncTokenToDb = useCallback(async (token) => {
+    if (!token) return false;
+    setDbSyncStatus('syncing');
+    const webUrl = process.env.EXPO_PUBLIC_TRIDENT_WEB_URL
+      ? `${process.env.EXPO_PUBLIC_TRIDENT_WEB_URL.replace(/\/+$/, '')}/api/phone-token`
+      : null;
+    const endpoints = [
+      webUrl,
+      'http://10.102.117.39:8080/api/phone-token', // Host PC Wi-Fi/LAN IP
+      'http://10.0.2.2:8080/api/phone-token',      // Android Emulator host loopback
+      'http://localhost:8080/api/phone-token',     // Local loopback
+    ].filter(Boolean);
+
+    for (const url of endpoints) {
+      try {
+        console.log(`[Trident Sync] Auto-syncing push token to DB at: ${url}`);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3000);
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token }),
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+        if (res.ok) {
+          console.log(`[Trident Sync] Successfully auto-saved push token to DB via: ${url}`);
+          setDbSyncStatus('synced');
+          return true;
+        }
+      } catch (e) {
+        // try next endpoint
+      }
+    }
+    console.warn('[Trident Sync] Could not reach Trident Web server automatically.');
+    setDbSyncStatus('failed');
+    return false;
+  }, []);
 
   // ── Setup Notifications & Retrieve Push Token for Background Alerts ──
   const setupNotifications = useCallback(async () => {
@@ -107,6 +148,8 @@ export default function App() {
           setPushToken(token);
           setTokenError(null);
           console.log('[Trident Push Token Resolved]:', token);
+          // Automatically sync token into the database
+          syncTokenToDb(token);
         } else if (lastErr) {
           setTokenError(lastErr.message || String(lastErr));
         }
@@ -119,7 +162,7 @@ export default function App() {
     } finally {
       setIsFetchingToken(false);
     }
-  }, []);
+  }, [syncTokenToDb]);
 
   useEffect(() => {
     setupNotifications();
@@ -502,6 +545,8 @@ Please list 5 to 10 matching words.`;
         tokenError={tokenError}
         isFetchingToken={isFetchingToken}
         onRetryToken={setupNotifications}
+        dbSyncStatus={dbSyncStatus}
+        onSyncToken={() => syncTokenToDb(pushToken)}
         hasNotificationPermission={hasNotificationPermission}
       />
     </SafeAreaView>
